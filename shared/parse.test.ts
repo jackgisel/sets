@@ -8,6 +8,8 @@ describe("wordsToDigits", () => {
     );
     expect(wordsToDigits("twenty-five push ups")).toBe("25 push ups");
     expect(wordsToDigits("ran a mile")).toBe("ran a mile");
+    expect(wordsToDigits("bench at one thirty five")).toBe("bench at 135");
+    expect(wordsToDigits("squat two twenty")).toBe("squat 220");
   });
 });
 

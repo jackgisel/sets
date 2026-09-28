@@ -42,6 +42,8 @@ export function wordsToDigits(text: string): string {
 
     if (n !== undefined) {
       if (acc === null) acc = n;
+      // "two twenty five" / "one thirty five": how lifters say 225 / 135
+      else if (acc > 0 && acc < 10 && n >= 20 && n % 10 === 0) acc = acc * 100 + n;
       else if (acc % 100 !== 0 && acc >= 20 && acc % 10 === 0 && n < 10) acc += n;
       else if (acc >= 100 && acc % 100 === 0 && n < 100) acc += n;
       else if (acc >= 100 && acc % 10 === 0 && n < 10) acc += n;

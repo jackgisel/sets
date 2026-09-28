@@ -129,7 +129,6 @@ function EntryEditor({ entry, store, onClose, planTitle }: { entry: Entry; store
       document.removeEventListener("pointerdown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const done = draft.status === "done";

@@ -54,7 +54,6 @@ export function VoiceSheet({ store, onClose }: { store: Store; onClose(): void }
       cancelAnimationFrame(raf);
       rec.current?.cancel();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const applyResult = (text: string, parsed: ParsedItem[]) => {

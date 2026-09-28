@@ -412,6 +412,9 @@ pre {
 .card-title::placeholder {
   color: var(--faint);
 }
+.card-title::-webkit-calendar-picker-indicator {
+  display: none !important;
+}
 .card-notes {
   width: 100%;
   border: 0;
