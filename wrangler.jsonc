@@ -16,7 +16,7 @@
     }
   ],
   "ai": { "binding": "AI" },
-  "observability": { "enabled": true }
-  // To serve on your domain, uncomment and edit (the zone must be on Cloudflare):
-  // "routes": [{ "pattern": "sets.example.com", "custom_domain": true }]
+  "observability": { "enabled": true },
+  // The jackgisel.com zone must be on Cloudflare; the custom domain and its certificate are created on deploy.
+  "routes": [{ "pattern": "sets.jackgisel.com", "custom_domain": true }]
 }

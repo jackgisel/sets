@@ -1,0 +1,38 @@
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency: deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx wrangler deploy
+      - run: npx wrangler d1 migrations apply sets --remote
+
+      # Optional: keep the Worker's secrets in sync with the repo's GitHub secrets.
+      - name: Sync app secrets
+        env:
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          AGENT_TOKEN: ${{ secrets.AGENT_TOKEN }}
+        run: |
+          if [ -n "$APP_PASSWORD" ]; then printf '%s' "$APP_PASSWORD" | npx wrangler secret put APP_PASSWORD; fi
+          if [ -n "$AGENT_TOKEN" ]; then printf '%s' "$AGENT_TOKEN" | npx wrangler secret put AGENT_TOKEN; fi

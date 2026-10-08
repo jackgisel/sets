@@ -49,3 +49,15 @@ export interface EntryInput {
 export interface ParsedItem extends Omit<EntryInput, "date" | "status"> {
   day_offset?: number;
 }
+
+/** The daily push-up challenge. The goal starts at `base` and rises by 1 for every `step_every` days you close, up to `cap`. */
+export interface PushupSettings {
+  start_date: string;
+  base: number;
+  step_every: number;
+  cap: number;
+}
+
+export interface Settings {
+  pushups?: PushupSettings;
+}

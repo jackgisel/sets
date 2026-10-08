@@ -2,10 +2,12 @@ import { useMemo, useState } from "react";
 import type { Entry } from "../../shared/types";
 import { EntryRow } from "../components/EntryRow";
 import { Heatmap } from "../components/Heatmap";
-import { FlameIcon } from "../components/Icons";
+import { FlameIcon, RingIcon } from "../components/Icons";
+import { PushupCard } from "../components/PushupCard";
 import { QuickAdd } from "../components/QuickAdd";
 import { addDays, fmtDay, fromISO, relativeLabel, today } from "../dates";
 import type { Store } from "../store";
+import { isPushup, type Journey } from "../pushups";
 import { dayStats, doneEntries, streaks } from "../stats";
 
 export interface ViewProps {
@@ -37,9 +39,10 @@ function Rows({ list, store }: { list: Entry[]; store: Store }) {
   );
 }
 
-export function TodayView({ store, adding, setAdding }: ViewProps) {
+export function TodayView({ store, adding, setAdding, journey, onPushups }: ViewProps & { journey: Journey | null; onPushups(): void }) {
   const t = today();
-  const list = store.entries.filter((e) => e.date === t);
+  // With the push-up challenge on, today's push-up sets live in the card instead of the list.
+  const list = store.entries.filter((e) => e.date === t && !(journey && e.status === "done" && isPushup(e)));
   const overdue = store.entries.filter((e) => e.status === "planned" && e.date < t && e.date >= addDays(t, -7));
   const days = useMemo(() => dayStats(doneEntries(store.entries)), [store.entries]);
   const { current } = streaks(days);
@@ -56,7 +59,7 @@ export function TodayView({ store, adding, setAdding }: ViewProps) {
         </h1>
         <div className="view-sub">
           {fmtDay(t, { weekday: "long", month: "long", day: "numeric" })}
-          {current > 0 && (
+          {current > 0 && !journey && (
             <span className="streak">
               <FlameIcon size={14} /> {current}-day streak
             </span>
@@ -64,10 +67,23 @@ export function TodayView({ store, adding, setAdding }: ViewProps) {
         </div>
       </header>
 
+      {journey ? (
+        <PushupCard journey={journey} store={store} onOpen={onPushups} />
+      ) : (
+        <button type="button" className="pu-invite" onClick={onPushups}>
+          <RingIcon size={18} pct={0.66} className="c-red" />
+          <span>
+            <b>Start the daily push-up climb</b>
+            <span className="muted"> · every day, a little more</span>
+          </span>
+          <span className="muted">→</span>
+        </button>
+      )}
+
       {adding && <QuickAdd store={store} date={t} status="done" onDone={() => setAdding(false)} />}
       <Rows list={list} store={store} />
 
-      {!adding && list.length === 0 && (
+      {!adding && list.length === 0 && !journey && (
         <button type="button" className="empty" onClick={() => setAdding(true)}>
           <span className="empty-title">Nothing yet today</span>
           <span className="muted">Tap the mic and say what you did, or tap + to type it.</span>

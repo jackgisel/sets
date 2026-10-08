@@ -1,5 +1,5 @@
 import { exerciseAlias } from "../shared/parse";
-import type { Entry, EntryStatus, Plan } from "../shared/types";
+import type { Entry, EntryStatus, Plan, PushupSettings, Settings } from "../shared/types";
 
 export interface Env {
   DB: D1Database;
@@ -330,4 +330,50 @@ export async function summary(env: Env, today: string) {
     recent_entries: done.slice(-40),
     upcoming_planned: upcoming,
   };
+}
+
+const SETTING_KEYS = ["pushups"] as const;
+type SettingKey = (typeof SETTING_KEYS)[number];
+
+function cleanPushups(raw: unknown): PushupSettings {
+  if (!raw || typeof raw !== "object") throw new HttpError(400, "pushups must be an object");
+  const r = raw as Record<string, unknown>;
+  if (!isDate(r.start_date)) throw new HttpError(400, "start_date must be YYYY-MM-DD");
+  const int = (v: unknown, field: string, min: number, max: number) => {
+    if (typeof v !== "number" || !Number.isInteger(v) || v < min || v > max) {
+      throw new HttpError(400, `${field} must be a whole number between ${min} and ${max}`);
+    }
+    return v;
+  };
+  const base = int(r.base, "base", 1, 1000);
+  const cap = int(r.cap, "cap", base, 2000);
+  return { start_date: r.start_date, base, step_every: int(r.step_every, "step_every", 1, 30), cap };
+}
+
+export async function getSettings(env: Env): Promise<Settings> {
+  // Tolerate a database that hasn't had 0002_settings applied yet (deploy runs before migrations).
+  const rows = await env.DB.prepare("SELECT key, value FROM settings")
+    .all<{ key: string; value: string }>()
+    .then((r) => r.results)
+    .catch(() => []);
+  const out: Record<string, unknown> = {};
+  for (const r of rows) {
+    try {
+      out[r.key] = JSON.parse(r.value);
+    } catch {
+      // ignore corrupt rows
+    }
+  }
+  return out as Settings;
+}
+
+export async function putSetting(env: Env, key: string, value: unknown): Promise<Settings> {
+  if (!SETTING_KEYS.includes(key as SettingKey)) throw new HttpError(404, "unknown setting");
+  const clean = cleanPushups(value);
+  await env.DB.prepare(
+    "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+  )
+    .bind(key, JSON.stringify(clean), new Date().toISOString())
+    .run();
+  return getSettings(env);
 }
