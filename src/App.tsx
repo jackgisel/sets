@@ -1,26 +1,29 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, Unauthorized } from "./api";
-import { Celebration } from "./components/Celebration";
-import { CalendarIcon, ChartIcon, LogbookIcon, MicIcon, PlanIcon, PlusIcon, RingIcon, StarIcon } from "./components/Icons";
+import { Celebration, WalkCelebration } from "./components/Celebration";
+import { MicIcon, PlusIcon } from "./components/Icons";
 import { VoiceSheet } from "./components/VoiceSheet";
-import { today } from "./dates";
 import type { Journey } from "./pushups";
+import type { Walk } from "./steps";
 import { useStore, type Store } from "./store";
 import { useJourney } from "./useJourney";
+import { useWalk } from "./useWalk";
 import { LogbookView, TodayView, UpcomingView } from "./views/ListViews";
 import { PlansView } from "./views/PlansView";
 import { ProgressView } from "./views/ProgressView";
 import { PushupsView } from "./views/PushupsView";
+import { StepsView } from "./views/StepsView";
 
-type View = "today" | "pushups" | "upcoming" | "logbook" | "progress" | "plans";
+type View = "today" | "steps" | "pushups" | "upcoming" | "logbook" | "progress" | "plans";
 
-const NAV: Array<{ id: View; label: string; icon: ReactNode; color: string }> = [
-  { id: "today", label: "Today", icon: <StarIcon />, color: "yellow" },
-  { id: "pushups", label: "Pushups", icon: <RingIcon />, color: "red" },
-  { id: "upcoming", label: "Upcoming", icon: <CalendarIcon />, color: "red" },
-  { id: "logbook", label: "Logbook", icon: <LogbookIcon />, color: "green" },
-  { id: "progress", label: "Progress", icon: <ChartIcon />, color: "blue" },
-  { id: "plans", label: "Plans", icon: <PlanIcon />, color: "blue" },
+const NAV: Array<{ id: View; label: string }> = [
+  { id: "today", label: "Today" },
+  { id: "steps", label: "Steps" },
+  { id: "pushups", label: "Push-ups" },
+  { id: "upcoming", label: "Upcoming" },
+  { id: "logbook", label: "History" },
+  { id: "progress", label: "Progress" },
+  { id: "plans", label: "Plans" },
 ];
 
 function viewFromHash(): View {
@@ -48,7 +51,9 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
   const [view, setView] = useState<View>(viewFromHash);
   const [adding, setAdding] = useState(false);
   const [voice, setVoice] = useState(false);
+  const [menu, setMenu] = useState(false);
   const { journey, moment, dismiss } = useJourney(store);
+  const walkGame = useWalk(store);
 
   useEffect(() => {
     const onHash = () => setView(viewFromHash());
@@ -58,6 +63,7 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
 
   const go = (v: View) => {
     setAdding(false);
+    setMenu(false);
     location.hash = v;
     setView(v);
     window.scrollTo({ top: 0 });
@@ -68,38 +74,45 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
     setAdding(true);
   };
 
-  const t = today();
-  const todayOpen = store.entries.filter((e) => e.date === t && e.status === "planned").length;
-  const upcomingCount = store.entries.filter((e) => e.date > t && e.status === "planned").length;
-  const counts: Partial<Record<View, number>> = { today: todayOpen, pushups: journey?.remaining, upcoming: upcomingCount };
-  const nav = NAV.map((n) =>
-    n.id === "pushups" && journey ? { ...n, icon: <RingIcon pct={journey.reps / journey.goal} style={{ color: journey.rank.current.color }} /> } : n,
+  const link = (n: (typeof NAV)[number]) => (
+    <button type="button" key={n.id} className={`nav-link ${view === n.id ? "active" : ""}`} aria-current={view === n.id ? "page" : undefined} onClick={() => go(n.id)}>
+      {n.label}
+    </button>
   );
 
   return (
     <div className="app">
-      <aside className="sidebar">
-        <div className="brand">
-          <Logo />
+      {/* Same nav as jackgisel.com: a small fixed text list on wide screens, a title bar with a menu on narrow ones. */}
+      <nav className="side-nav" aria-label="Sections">
+        <button type="button" className="nav-title" onClick={() => go("today")}>
           Sets
-        </div>
-        <nav>
-          {nav.slice(0, 5).map((n) => (
-            <NavItem key={n.id} item={n} active={view === n.id} count={counts[n.id]} onClick={() => go(n.id)} />
-          ))}
-          <div className="nav-sep" />
-          <NavItem item={nav[5]} active={view === "plans"} onClick={() => go("plans")} />
-          {store.plans.slice(0, 8).map((p) => (
-            <button type="button" key={p.id} className="nav-item sub" onClick={() => go("plans")}>
-              <span className="mini-ring" style={{ ["--pct" as string]: p.total ? Math.round((p.done / p.total) * 100) : 0 }} />
-              <span className="nav-label">{p.title}</span>
-            </button>
-          ))}
-        </nav>
-        <a className="home-link" href="https://jackgisel.com">
+        </button>
+        <div className="nav-links">{NAV.map(link)}</div>
+        <a className="nav-home" href="https://jackgisel.com">
           jackgisel.com ↗
         </a>
-      </aside>
+      </nav>
+      <nav className={`mobile-nav ${menu ? "open" : ""}`} aria-label="Sections">
+        <div className="mobile-bar">
+          <button type="button" className="nav-title" onClick={() => go("today")}>
+            Sets
+          </button>
+          <button type="button" className="menu-btn" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+            <span className="menu-icon" aria-hidden="true">
+              <span />
+              <span />
+            </span>
+          </button>
+        </div>
+        <div className="mobile-links">
+          <div>
+            {NAV.map(link)}
+            <a className="nav-home" href="https://jackgisel.com">
+              jackgisel.com ↗
+            </a>
+          </div>
+        </div>
+      </nav>
 
       <main className="main">
         <div className="content">
@@ -113,28 +126,20 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
               <div className="spinner" />
             </div>
           ) : (
-            <ViewSwitch view={view} store={store} journey={journey} adding={adding} setAdding={setAdding} go={go} />
+            <ViewSwitch view={view} store={store} journey={journey} walk={walkGame.walk} adding={adding} setAdding={setAdding} go={go} />
           )}
+          <footer className="site-footer">&copy; {new Date().getFullYear()} Jack Gisel</footer>
         </div>
       </main>
 
       <div className="fabs">
         <button type="button" className="fab fab-mic" aria-label="Log by voice" onClick={() => setVoice(true)}>
-          <MicIcon size={24} />
+          <MicIcon size={20} />
         </button>
         <button type="button" className="fab" aria-label="Add workout" onClick={onPlus}>
-          <PlusIcon size={26} />
+          <PlusIcon size={22} />
         </button>
       </div>
-
-      <nav className="tabbar">
-        {nav.map((n) => (
-          <button type="button" key={n.id} className={`tab ${view === n.id ? "active" : ""} t-${n.color}`} onClick={() => go(n.id)}>
-            <span className="tab-icon">{n.icon}</span>
-            <span>{n.label}</span>
-          </button>
-        ))}
-      </nav>
 
       <datalist id="exercise-names">
         {store.exercises.map((e) => (
@@ -142,7 +147,11 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
         ))}
       </datalist>
 
-      {moment && <Celebration key={moment.key} moment={moment} onClose={dismiss} />}
+      {moment ? (
+        <Celebration key={moment.key} moment={moment} onClose={dismiss} />
+      ) : (
+        walkGame.moment && <WalkCelebration key={walkGame.moment.key} moment={walkGame.moment} onClose={walkGame.dismiss} />
+      )}
 
       {voice && (
         <VoiceSheet
@@ -161,6 +170,7 @@ function ViewSwitch({
   view,
   store,
   journey,
+  walk,
   adding,
   setAdding,
   go,
@@ -168,13 +178,18 @@ function ViewSwitch({
   view: View;
   store: Store;
   journey: Journey | null;
+  walk: Walk;
   adding: boolean;
   setAdding(v: boolean): void;
   go(v: View): void;
 }) {
   switch (view) {
     case "today":
-      return <TodayView store={store} adding={adding} setAdding={setAdding} journey={journey} onPushups={() => go("pushups")} />;
+      return (
+        <TodayView store={store} adding={adding} setAdding={setAdding} journey={journey} walk={walk} onPushups={() => go("pushups")} onSteps={() => go("steps")} />
+      );
+    case "steps":
+      return <StepsView store={store} walk={walk} />;
     case "pushups":
       return <PushupsView store={store} journey={journey} />;
     case "upcoming":
@@ -186,16 +201,6 @@ function ViewSwitch({
     case "plans":
       return <PlansView store={store} />;
   }
-}
-
-function NavItem({ item, active, count, onClick }: { item: (typeof NAV)[number]; active: boolean; count?: number; onClick(): void }) {
-  return (
-    <button type="button" className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>
-      <span className={`nav-icon c-${item.color}`}>{item.icon}</span>
-      <span className="nav-label">{item.label}</span>
-      {!!count && <span className="nav-count">{count}</span>}
-    </button>
-  );
 }
 
 function Login({ onDone }: { onDone(): void }) {
@@ -219,16 +224,8 @@ function Login({ onDone }: { onDone(): void }) {
           }
         }}
       >
-        <div className="window login-window">
-          <div className="window-bar">
-            <span className="dot red" />
-            <span className="dot yellow" />
-            <span className="dot green" />
-            <span className="window-url">sets.jackgisel.com</span>
-          </div>
-          <div className="login-body">
-            <h1>Sets</h1>
-            <p className="muted small">Do the work. Check it off.</p>
+        <h1 className="login-title">Sets</h1>
+        <p className="login-tag">Do the work. Check it off.</p>
         <input
           type="password"
           placeholder="Password"
@@ -241,20 +238,10 @@ function Login({ onDone }: { onDone(): void }) {
         <button type="submit" className="btn primary wide" disabled={!pw || busy}>
           {busy ? "…" : "Unlock"}
         </button>
-          </div>
-        </div>
+        <a className="login-home" href="https://jackgisel.com">
+          jackgisel.com ↗
+        </a>
       </form>
     </div>
-  );
-}
-
-/** The traffic-light window mark from jackgisel.com. */
-function Logo() {
-  return (
-    <span className="logo" aria-hidden="true">
-      <span className="dot red" />
-      <span className="dot yellow" />
-      <span className="dot green" />
-    </span>
   );
 }

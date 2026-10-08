@@ -17,15 +17,7 @@ export function PlansView({ store }: { store: Store }) {
   return (
     <>
       <header className="view-head">
-        <h1>
-          <span className="h-icon blue">
-            <svg width="24" height="24" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="8.6" stroke="currentColor" strokeWidth="2.4" fill="none" />
-              <path d="M12 3.4a8.6 8.6 0 0 1 8.6 8.6H12V3.4z" fill="currentColor" />
-            </svg>
-          </span>
-          Plans
-        </h1>
+        <h1>Plans</h1>
         <div className="view-sub">Programs written by you or your agents</div>
       </header>
 

@@ -117,6 +117,38 @@ export function openapi(origin: string) {
           responses: { "200": { description: "Deleted" } },
         },
       },
+      "/api/steps": {
+        get: {
+          operationId: "listSteps",
+          summary: "Daily step counts",
+          parameters: [
+            { name: "from", in: "query", schema: { type: "string", format: "date" } },
+            { name: "to", in: "query", schema: { type: "string", format: "date" } },
+          ],
+          responses: { "200": { description: "Steps per day" } },
+        },
+        post: {
+          operationId: "logSteps",
+          summary: "Record a day's steps (goal: 10,000). mode 'set' replaces the total; 'add' adds to it",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["steps"],
+                  properties: {
+                    date: { type: "string", format: "date" },
+                    steps: { type: "integer", minimum: 0 },
+                    mode: { type: "string", enum: ["set", "add"] },
+                  },
+                },
+              },
+            },
+          },
+          responses: { "200": { description: "The saved day" } },
+        },
+      },
     },
   };
 }
@@ -131,7 +163,7 @@ Dates are YYYY-MM-DD in the owner's local calendar. Weights default to lb.
 
 ## Option A: MCP (recommended)
 Remote MCP server (Streamable HTTP): ${origin}/mcp
-Tools: get_summary, create_plan, list_plans, delete_plan, list_entries, log_workout, update_entry, delete_entry
+Tools: get_summary, create_plan, list_plans, delete_plan, list_entries, log_workout, update_entry, delete_entry, log_steps, list_steps
 
 ## Option B: REST
 OpenAPI spec: ${origin}/openapi.json
@@ -146,6 +178,9 @@ OpenAPI spec: ${origin}/openapi.json
       {"date": "2026-10-02", "exercise": "Run", "distance": 3, "distance_unit": "mi", "notes": "easy pace"}
     ]}
 3. Each planned entry shows as an unchecked to-do on its date. When the owner checks it off it becomes a completed workout.
+
+Steps: the owner walks 10,000 steps a day. get_summary includes a "steps" block (today, streak, 7-day average).
+Record a day with POST ${origin}/api/steps {"date": "2026-10-01", "steps": 10432} (replaces that day's total) or log_steps over MCP.
 
 Tips: reuse exercise names from get_summary so progress charts line up; base weights on each exercise's recent "last" and "best_weight".
 `;

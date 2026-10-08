@@ -1,4 +1,4 @@
-import type { Entry, EntryInput, ParsedItem, PushupSettings, Settings } from "../shared/types";
+import type { Entry, EntryInput, ParsedItem, PushupSettings, Settings, StepDay } from "../shared/types";
 
 export class Unauthorized extends Error {}
 
@@ -59,6 +59,9 @@ export const api = {
   settings: () => req<{ settings: Settings }>("/api/settings").then((r) => r.settings),
   savePushups: (value: PushupSettings) =>
     req<{ settings: Settings }>("/api/settings/pushups", { method: "PUT", body: JSON.stringify(value) }).then((r) => r.settings),
+  steps: (from: string, to: string) => req<{ steps: StepDay[] }>(`/api/steps?from=${from}&to=${to}`).then((r) => r.steps),
+  saveSteps: (date: string, steps: number, mode: "set" | "add" = "set") =>
+    req<{ day: StepDay }>("/api/steps", { method: "POST", body: JSON.stringify({ date, steps, mode }) }).then((r) => r.day),
   exercises: () => req<{ exercises: ExerciseRow[] }>("/api/exercises").then((r) => r.exercises),
   parse: (text: string) => req<ParseResult>("/api/parse", { method: "POST", body: JSON.stringify({ text }) }),
   transcribe: (audio: string) => req<ParseResult>("/api/transcribe", { method: "POST", body: JSON.stringify({ audio }) }),

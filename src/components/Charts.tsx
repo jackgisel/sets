@@ -33,16 +33,19 @@ export function BarChart({
   color = "var(--blue)",
   format = String,
   labelEvery = 1,
+  goal,
 }: {
   data: Point[];
   height?: number;
   color?: string;
   format?: (n: number) => string;
   labelEvery?: number;
+  /** Draws a dashed line at this value; bars that reach it stay full strength. */
+  goal?: number;
 }) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
-  const max = niceMax(Math.max(...data.map((d) => d.value), 0));
+  const max = niceMax(Math.max(...data.map((d) => d.value), goal ?? 0));
   const innerW = Math.max(0, width - PAD.left - PAD.right);
   const innerH = height - PAD.top - PAD.bottom;
   const slot = data.length ? innerW / data.length : 0;
@@ -56,6 +59,9 @@ export function BarChart({
           {[0.5, 1].map((f) => (
             <line key={f} x1={PAD.left} x2={width - PAD.right} y1={PAD.top + innerH * (1 - f)} y2={PAD.top + innerH * (1 - f)} className="gridline" />
           ))}
+          {goal != null && (
+            <line x1={PAD.left} x2={width - PAD.right} y1={PAD.top + innerH * (1 - goal / max)} y2={PAD.top + innerH * (1 - goal / max)} className="gridline goal" />
+          )}
           {data.map((d, i) => {
             const h = (d.value / max) * innerH;
             const x = PAD.left + slot * i + (slot - bw) / 2;
@@ -69,7 +75,7 @@ export function BarChart({
                   height={Math.max(h, d.value > 0 ? 3 : 0)}
                   rx={Math.min(5, bw / 2)}
                   fill={color}
-                  opacity={i === active ? 1 : 0.45}
+                  opacity={i === active || (goal != null && d.value >= goal) ? 1 : 0.45}
                 />
                 {d.value === 0 && <rect x={x} y={PAD.top + innerH - 2} width={bw} height={2} rx={1} className="zero-bar" />}
                 {(i % labelEvery === 0 || i === data.length - 1) && (

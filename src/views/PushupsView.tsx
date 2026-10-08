@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { PushupSettings } from "../../shared/types";
 import { PushupCard } from "../components/PushupCard";
-import { RingIcon, ShieldIcon } from "../components/Icons";
+import { Chain } from "../components/Chain";
 import { addDays, fmtDay, fromISO, today } from "../dates";
 import { setSoundOn, soundOn } from "../feedback";
 import { ACHIEVEMENTS, chainWeeks, DEFAULT_SETTINGS, daysToNextRank, RANKS, type Journey, type PushDay } from "../pushups";
@@ -33,12 +33,7 @@ export function PushupsView({ store, journey }: { store: Store; journey: Journey
 function Head({ journey: j }: { journey?: Journey }) {
   return (
     <header className="view-head">
-      <h1>
-        <span className="h-icon" style={{ color: j?.rank.current.color ?? "var(--red)" }}>
-          <RingIcon size={22} pct={j ? j.reps / j.goal : 0.66} />
-        </span>
-        Pushups
-      </h1>
+      <h1>Push-ups</h1>
       <div className="view-sub">
         {j ? (
           <>
@@ -185,43 +180,19 @@ function RankSection({ j }: { j: Journey }) {
   );
 }
 
-const DOW = ["M", "", "W", "", "F", "", "S"];
-
 function ChainSection({ j }: { j: Journey }) {
-  const weeks = chainWeeks(j);
-  const [sel, setSel] = useState<PushDay | null>(null);
   const closed = j.days.filter((d) => d.status === "closed").length;
+  const weeks = chainWeeks(j).map((w) => w.map((d) => (d ? { ...d, pct: d.goal ? d.reps / d.goal : 0 } : null)));
   return (
-    <section className="section" style={{ ["--ring" as string]: j.rank.current.color }}>
+    <section className="section">
       <h2 className="section-title">The chain</h2>
-      <div className="heatmap-scroll" ref={(el) => void (el && (el.scrollLeft = el.scrollWidth))}>
-        <div className="chain" style={{ gridTemplateColumns: `16px repeat(${weeks.length}, var(--cell))` }}>
-          {DOW.map((label, dow) => (
-            <ChainRow key={dow} label={label} cells={weeks.map((w) => w[dow])} today={j.today} sel={sel} onSel={setSel} />
-          ))}
-        </div>
-      </div>
-      <div className="heatmap-foot">
-        <div className="heatmap-readout">
-          {sel ? (
-            <>
-              <b>{fmtDay(sel.date)}</b> — {chainText(sel)}
-            </>
-          ) : (
-            <span className="muted">
-              {closed} of {j.days.length} days closed
-            </span>
-          )}
-        </div>
-        <div className="heatmap-legend">
-          <span className="link c-closed" /> closed
-          <span className="link c-shielded">
-            <ShieldIcon size={8} />
-          </span>{" "}
-          shielded
-          <span className="link c-missed" /> missed
-        </div>
-      </div>
+      <Chain
+        weeks={weeks}
+        today={j.today}
+        color={j.rank.current.color}
+        describe={chainText}
+        summary={`${closed} of ${j.days.length} days closed`}
+      />
     </section>
   );
 }
@@ -233,42 +204,6 @@ function chainText(d: PushDay) {
   if (d.status === "shielded") return `${d.reps} of ${d.goal}. A shield held the streak.`;
   if (d.status === "open") return `${d.reps} of ${d.goal} so far`;
   return `${d.reps} of ${d.goal}. Missed.`;
-}
-
-function ChainRow({
-  label,
-  cells,
-  today: t,
-  sel,
-  onSel,
-}: {
-  label: string;
-  cells: Array<PushDay | null>;
-  today: string;
-  sel: PushDay | null;
-  onSel(d: PushDay): void;
-}) {
-  return (
-    <>
-      <div className="heatmap-dow">{label}</div>
-      {cells.map((d, i) =>
-        !d ? (
-          <span key={i} className="link c-future" />
-        ) : (
-          <button
-            type="button"
-            key={d.date}
-            className={`link c-${d.status} ${d.date === t ? "is-today" : ""} ${sel?.date === d.date ? "is-selected" : ""}`}
-            style={d.status === "open" ? { ["--p" as string]: `${Math.round((d.reps / d.goal) * 100)}%` } : undefined}
-            onClick={() => onSel(d)}
-            aria-label={`${fmtDay(d.date)}: ${chainText(d)}`}
-          >
-            {d.status === "shielded" && <ShieldIcon size={8} />}
-          </button>
-        ),
-      )}
-    </>
-  );
 }
 
 function NumbersSection({ j }: { j: Journey }) {

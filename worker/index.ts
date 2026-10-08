@@ -15,7 +15,10 @@ import {
   listEntries,
   listExercises,
   listPlans,
+  listSteps,
+  localToday,
   putSetting,
+  putSteps,
   summary,
   updateEntry,
   utcToday,
@@ -105,6 +108,16 @@ app.put("/api/settings/:key", async (c) => {
   if (c.get("caller").kind !== "owner") return c.json({ error: "only the owner can change settings" }, 403);
   return c.json({ settings: await putSetting(c.env, c.req.param("key"), await c.req.json()) });
 });
+
+app.get("/api/steps", async (c) => c.json({ steps: await listSteps(c.env, { from: c.req.query("from"), to: c.req.query("to") }) }));
+// POST takes { date?, steps, mode? }; PUT /api/steps/:date sets that day's total. Both work with the agent token, so an iPhone Shortcut can sync Health.
+// Without a date, "today" is the caller's local day (Cloudflare geolocates the time zone), not UTC.
+app.post("/api/steps", async (c) =>
+  c.json({ day: await putSteps(c.env, await c.req.json(), c.get("caller").source, localToday(c.req.raw.cf?.timezone)) }),
+);
+app.put("/api/steps/:date", async (c) =>
+  c.json({ day: await putSteps(c.env, { ...(await c.req.json<object>()), date: c.req.param("date") }, c.get("caller").source) }),
+);
 
 app.get("/api/exercises", async (c) => c.json({ exercises: await listExercises(c.env) }));
 
