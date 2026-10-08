@@ -1,6 +1,6 @@
 # Sets
 
-A very simple workout tracker, dressed like [jackgisel.com](https://jackgisel.com): olive paper, Instrument Serif headings, light by default with a dark mode.
+A very simple workout tracker, dressed like [jackgisel.com](https://jackgisel.com): a dark canvas, a small text nav, and one narrow column.
 
 - **Today / Upcoming / History**: every exercise is a to-do. Check it off when it's done.
 - **Voice logging**: tap the mic and say *"3 sets of 10 bench at 135, then a 2 mile run"*. Whisper transcribes it, an LLM turns it into entries, and you confirm before anything is saved.

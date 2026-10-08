@@ -16,7 +16,7 @@ export interface WalkMoment {
   walk: Walk;
 }
 
-const CONFETTI = ["#6b7a3a", "#a3ad78", "#e8b931", "#f4f3ec"];
+const CONFETTI = ["#5aa2ff", "#ffffff", "#28c840", "#5aa2ff"];
 
 /** Computes the daily walk and turns changes in it (10k, a bonus lap, a waypoint, new marks) into moments. */
 export function useWalk(store: Store) {

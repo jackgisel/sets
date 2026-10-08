@@ -16,19 +16,15 @@ import { StepsView } from "./views/StepsView";
 
 type View = "today" | "steps" | "pushups" | "upcoming" | "logbook" | "progress" | "plans";
 
-/** Split around the title the way jackgisel.com's header is. */
-const NAV_LEFT: Array<{ id: View; label: string }> = [
+const NAV: Array<{ id: View; label: string }> = [
   { id: "today", label: "Today" },
   { id: "steps", label: "Steps" },
   { id: "pushups", label: "Push-ups" },
   { id: "upcoming", label: "Upcoming" },
-];
-const NAV_RIGHT: Array<{ id: View; label: string }> = [
   { id: "logbook", label: "History" },
   { id: "progress", label: "Progress" },
   { id: "plans", label: "Plans" },
 ];
-const NAV = [...NAV_LEFT, ...NAV_RIGHT];
 
 function viewFromHash(): View {
   const h = location.hash.slice(1) as View;
@@ -55,6 +51,7 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
   const [view, setView] = useState<View>(viewFromHash);
   const [adding, setAdding] = useState(false);
   const [voice, setVoice] = useState(false);
+  const [menu, setMenu] = useState(false);
   const { journey, moment, dismiss } = useJourney(store);
   const walkGame = useWalk(store);
 
@@ -66,6 +63,7 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
 
   const go = (v: View) => {
     setAdding(false);
+    setMenu(false);
     location.hash = v;
     setView(v);
     window.scrollTo({ top: 0 });
@@ -84,18 +82,37 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
 
   return (
     <div className="app">
-      <header className="site-header">
-        <nav className="site-nav">
-          <div className="nav-side left">{NAV_LEFT.map(link)}</div>
-          <button type="button" className="site-title" onClick={() => go("today")}>
+      {/* Same nav as jackgisel.com: a small fixed text list on wide screens, a title bar with a menu on narrow ones. */}
+      <nav className="side-nav" aria-label="Sections">
+        <button type="button" className="nav-title" onClick={() => go("today")}>
+          Sets
+        </button>
+        <div className="nav-links">{NAV.map(link)}</div>
+        <a className="nav-home" href="https://jackgisel.com">
+          jackgisel.com ↗
+        </a>
+      </nav>
+      <nav className={`mobile-nav ${menu ? "open" : ""}`} aria-label="Sections">
+        <div className="mobile-bar">
+          <button type="button" className="nav-title" onClick={() => go("today")}>
             Sets
           </button>
-          <div className="nav-side right">{NAV_RIGHT.map(link)}</div>
-        </nav>
-        <nav className="nav-scroll" aria-label="Sections">
-          {NAV.map(link)}
-        </nav>
-      </header>
+          <button type="button" className="menu-btn" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+            <span className="menu-icon" aria-hidden="true">
+              <span />
+              <span />
+            </span>
+          </button>
+        </div>
+        <div className="mobile-links">
+          <div>
+            {NAV.map(link)}
+            <a className="nav-home" href="https://jackgisel.com">
+              jackgisel.com ↗
+            </a>
+          </div>
+        </div>
+      </nav>
 
       <main className="main">
         <div className="content">
@@ -111,20 +128,16 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
           ) : (
             <ViewSwitch view={view} store={store} journey={journey} walk={walkGame.walk} adding={adding} setAdding={setAdding} go={go} />
           )}
+          <footer className="site-footer">&copy; {new Date().getFullYear()} Jack Gisel</footer>
         </div>
       </main>
 
-      <footer className="site-footer">
-        <a href="https://jackgisel.com">jackgisel.com</a>
-        <span>&copy; {new Date().getFullYear()} Jack Gisel</span>
-      </footer>
-
       <div className="fabs">
         <button type="button" className="fab fab-mic" aria-label="Log by voice" onClick={() => setVoice(true)}>
-          <MicIcon size={22} />
+          <MicIcon size={20} />
         </button>
         <button type="button" className="fab" aria-label="Add workout" onClick={onPlus}>
-          <PlusIcon size={24} />
+          <PlusIcon size={22} />
         </button>
       </div>
 
@@ -226,7 +239,7 @@ function Login({ onDone }: { onDone(): void }) {
           {busy ? "…" : "Unlock"}
         </button>
         <a className="login-home" href="https://jackgisel.com">
-          jackgisel.com
+          jackgisel.com ↗
         </a>
       </form>
     </div>

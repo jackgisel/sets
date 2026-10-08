@@ -41,7 +41,7 @@ export function useJourney(store: Store) {
     if (closed || rankUp) {
       if (rankUp) fanfare();
       else chord();
-      confetti(rankUp ? RANKS.slice(0, journey.rank.index + 1).map((r) => r.color) : [color, "#f4f4f0", "#7c7c67", color]);
+      confetti(rankUp ? RANKS.slice(0, journey.rank.index + 1).map((r) => r.color) : [color, "#ffffff", "#5aa2ff", color]);
     }
     setMoment({
       key: Date.now(),
