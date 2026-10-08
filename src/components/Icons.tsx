@@ -91,3 +91,30 @@ export const FlameIcon = (p: P) => (
     />
   </svg>
 );
+
+export const ShieldIcon = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 2.8l7.5 2.9v5.6c0 4.8-3.1 8.4-7.5 9.9-4.4-1.5-7.5-5.1-7.5-9.9V5.7L12 2.8z" fill="currentColor" />
+  </svg>
+);
+
+export const RingIcon = (p: P & { pct?: number }) => {
+  const { pct = 0, ...rest } = p;
+  const c = 2 * Math.PI * 8;
+  return (
+    <svg {...base(rest)}>
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeOpacity=".25" strokeWidth="3.2" />
+      {pct > 0 && <circle
+        cx="12"
+        cy="12"
+        r="8"
+        stroke="currentColor"
+        strokeWidth="3.2"
+        strokeLinecap="round"
+        strokeDasharray={c}
+        strokeDashoffset={c * (1 - Math.min(1, Math.max(0, pct)))}
+        transform="rotate(-90 12 12)"
+      />}
+    </svg>
+  );
+};

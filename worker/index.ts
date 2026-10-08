@@ -9,11 +9,13 @@ import {
   createPlan,
   deleteEntry,
   deletePlan,
+  getSettings,
   HttpError,
   isDate,
   listEntries,
   listExercises,
   listPlans,
+  putSetting,
   summary,
   updateEntry,
   utcToday,
@@ -97,6 +99,12 @@ app.delete("/api/entries/:id", async (c) => {
 app.get("/api/plans", async (c) => c.json({ plans: await listPlans(c.env) }));
 app.post("/api/plans", async (c) => c.json(await createPlan(c.env, await c.req.json(), c.get("caller").source), 201));
 app.delete("/api/plans/:id", async (c) => c.json(await deletePlan(c.env, c.req.param("id"))));
+
+app.get("/api/settings", async (c) => c.json({ settings: await getSettings(c.env) }));
+app.put("/api/settings/:key", async (c) => {
+  if (c.get("caller").kind !== "owner") return c.json({ error: "only the owner can change settings" }, 403);
+  return c.json({ settings: await putSetting(c.env, c.req.param("key"), await c.req.json()) });
+});
 
 app.get("/api/exercises", async (c) => c.json({ exercises: await listExercises(c.env) }));
 

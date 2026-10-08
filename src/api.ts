@@ -1,4 +1,4 @@
-import type { Entry, EntryInput, ParsedItem } from "../shared/types";
+import type { Entry, EntryInput, ParsedItem, PushupSettings, Settings } from "../shared/types";
 
 export class Unauthorized extends Error {}
 
@@ -43,8 +43,10 @@ export const api = {
   me: () => req<{ kind: string }>("/api/me"),
   login: (password: string) => req("/api/login", { method: "POST", body: JSON.stringify({ password }) }),
   logout: () => req("/api/logout", { method: "POST" }),
-  entries: (from: string, to: string) =>
-    req<{ entries: Entry[] }>(`/api/entries?from=${from}&to=${to}`).then((r) => r.entries),
+  entries: (from: string, to: string, exercise?: string) =>
+    req<{ entries: Entry[] }>(
+      `/api/entries?from=${from}&to=${to}${exercise ? `&exercise=${encodeURIComponent(exercise)}&status=done&limit=10000` : ""}`,
+    ).then((r) => r.entries),
   create: (entries: EntryInput[], source = "manual") =>
     req<{ entries: Entry[] }>("/api/entries", { method: "POST", body: JSON.stringify({ entries, source }) }).then(
       (r) => r.entries,
@@ -54,6 +56,9 @@ export const api = {
   remove: (id: string) => req(`/api/entries/${id}`, { method: "DELETE" }),
   plans: () => req<{ plans: PlanRow[] }>("/api/plans").then((r) => r.plans),
   removePlan: (id: string) => req(`/api/plans/${id}`, { method: "DELETE" }),
+  settings: () => req<{ settings: Settings }>("/api/settings").then((r) => r.settings),
+  savePushups: (value: PushupSettings) =>
+    req<{ settings: Settings }>("/api/settings/pushups", { method: "PUT", body: JSON.stringify(value) }).then((r) => r.settings),
   exercises: () => req<{ exercises: ExerciseRow[] }>("/api/exercises").then((r) => r.exercises),
   parse: (text: string) => req<ParseResult>("/api/parse", { method: "POST", body: JSON.stringify({ text }) }),
   transcribe: (audio: string) => req<ParseResult>("/api/transcribe", { method: "POST", body: JSON.stringify({ audio }) }),

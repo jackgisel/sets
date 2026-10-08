@@ -1,17 +1,22 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { api, Unauthorized } from "./api";
-import { CalendarIcon, ChartIcon, LogbookIcon, MicIcon, PlanIcon, PlusIcon, StarIcon } from "./components/Icons";
+import { Celebration } from "./components/Celebration";
+import { CalendarIcon, ChartIcon, LogbookIcon, MicIcon, PlanIcon, PlusIcon, RingIcon, StarIcon } from "./components/Icons";
 import { VoiceSheet } from "./components/VoiceSheet";
 import { today } from "./dates";
+import type { Journey } from "./pushups";
 import { useStore, type Store } from "./store";
+import { useJourney } from "./useJourney";
 import { LogbookView, TodayView, UpcomingView } from "./views/ListViews";
 import { PlansView } from "./views/PlansView";
 import { ProgressView } from "./views/ProgressView";
+import { PushupsView } from "./views/PushupsView";
 
-type View = "today" | "upcoming" | "logbook" | "progress" | "plans";
+type View = "today" | "pushups" | "upcoming" | "logbook" | "progress" | "plans";
 
 const NAV: Array<{ id: View; label: string; icon: ReactNode; color: string }> = [
   { id: "today", label: "Today", icon: <StarIcon />, color: "yellow" },
+  { id: "pushups", label: "Pushups", icon: <RingIcon />, color: "red" },
   { id: "upcoming", label: "Upcoming", icon: <CalendarIcon />, color: "red" },
   { id: "logbook", label: "Logbook", icon: <LogbookIcon />, color: "green" },
   { id: "progress", label: "Progress", icon: <ChartIcon />, color: "blue" },
@@ -43,6 +48,7 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
   const [view, setView] = useState<View>(viewFromHash);
   const [adding, setAdding] = useState(false);
   const [voice, setVoice] = useState(false);
+  const { journey, moment, dismiss } = useJourney(store);
 
   useEffect(() => {
     const onHash = () => setView(viewFromHash());
@@ -65,21 +71,24 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
   const t = today();
   const todayOpen = store.entries.filter((e) => e.date === t && e.status === "planned").length;
   const upcomingCount = store.entries.filter((e) => e.date > t && e.status === "planned").length;
-  const counts: Partial<Record<View, number>> = { today: todayOpen, upcoming: upcomingCount };
+  const counts: Partial<Record<View, number>> = { today: todayOpen, pushups: journey?.remaining, upcoming: upcomingCount };
+  const nav = NAV.map((n) =>
+    n.id === "pushups" && journey ? { ...n, icon: <RingIcon pct={journey.reps / journey.goal} style={{ color: journey.rank.current.color }} /> } : n,
+  );
 
   return (
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <img src="/icon.svg" alt="" width={22} height={22} />
+          <Logo />
           Sets
         </div>
         <nav>
-          {NAV.slice(0, 4).map((n) => (
+          {nav.slice(0, 5).map((n) => (
             <NavItem key={n.id} item={n} active={view === n.id} count={counts[n.id]} onClick={() => go(n.id)} />
           ))}
           <div className="nav-sep" />
-          <NavItem item={NAV[4]} active={view === "plans"} onClick={() => go("plans")} />
+          <NavItem item={nav[5]} active={view === "plans"} onClick={() => go("plans")} />
           {store.plans.slice(0, 8).map((p) => (
             <button type="button" key={p.id} className="nav-item sub" onClick={() => go("plans")}>
               <span className="mini-ring" style={{ ["--pct" as string]: p.total ? Math.round((p.done / p.total) * 100) : 0 }} />
@@ -87,6 +96,9 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
             </button>
           ))}
         </nav>
+        <a className="home-link" href="https://jackgisel.com">
+          jackgisel.com ↗
+        </a>
       </aside>
 
       <main className="main">
@@ -101,7 +113,7 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
               <div className="spinner" />
             </div>
           ) : (
-            <ViewSwitch view={view} store={store} adding={adding} setAdding={setAdding} />
+            <ViewSwitch view={view} store={store} journey={journey} adding={adding} setAdding={setAdding} go={go} />
           )}
         </div>
       </main>
@@ -116,7 +128,7 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
       </div>
 
       <nav className="tabbar">
-        {NAV.map((n) => (
+        {nav.map((n) => (
           <button type="button" key={n.id} className={`tab ${view === n.id ? "active" : ""} t-${n.color}`} onClick={() => go(n.id)}>
             <span className="tab-icon">{n.icon}</span>
             <span>{n.label}</span>
@@ -129,6 +141,8 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
           <option key={e.exercise} value={e.exercise} />
         ))}
       </datalist>
+
+      {moment && <Celebration key={moment.key} moment={moment} onClose={dismiss} />}
 
       {voice && (
         <VoiceSheet
@@ -143,10 +157,26 @@ function Shell({ onSignedOut }: { onSignedOut(): void }) {
   );
 }
 
-function ViewSwitch({ view, store, adding, setAdding }: { view: View; store: Store; adding: boolean; setAdding(v: boolean): void }) {
+function ViewSwitch({
+  view,
+  store,
+  journey,
+  adding,
+  setAdding,
+  go,
+}: {
+  view: View;
+  store: Store;
+  journey: Journey | null;
+  adding: boolean;
+  setAdding(v: boolean): void;
+  go(v: View): void;
+}) {
   switch (view) {
     case "today":
-      return <TodayView store={store} adding={adding} setAdding={setAdding} />;
+      return <TodayView store={store} adding={adding} setAdding={setAdding} journey={journey} onPushups={() => go("pushups")} />;
+    case "pushups":
+      return <PushupsView store={store} journey={journey} />;
     case "upcoming":
       return <UpcomingView store={store} adding={adding} setAdding={setAdding} />;
     case "logbook":
@@ -189,8 +219,16 @@ function Login({ onDone }: { onDone(): void }) {
           }
         }}
       >
-        <img src="/icon.svg" alt="" width={64} height={64} />
-        <h1>Sets</h1>
+        <div className="window login-window">
+          <div className="window-bar">
+            <span className="dot red" />
+            <span className="dot yellow" />
+            <span className="dot green" />
+            <span className="window-url">sets.jackgisel.com</span>
+          </div>
+          <div className="login-body">
+            <h1>Sets</h1>
+            <p className="muted small">Do the work. Check it off.</p>
         <input
           type="password"
           placeholder="Password"
@@ -203,7 +241,20 @@ function Login({ onDone }: { onDone(): void }) {
         <button type="submit" className="btn primary wide" disabled={!pw || busy}>
           {busy ? "…" : "Unlock"}
         </button>
+          </div>
+        </div>
       </form>
     </div>
+  );
+}
+
+/** The traffic-light window mark from jackgisel.com. */
+function Logo() {
+  return (
+    <span className="logo" aria-hidden="true">
+      <span className="dot red" />
+      <span className="dot yellow" />
+      <span className="dot green" />
+    </span>
   );
 }

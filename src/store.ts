@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Entry, EntryInput } from "../shared/types";
+import type { Entry, EntryInput, PushupSettings, Settings } from "../shared/types";
 import { api, type ExerciseRow, type PlanRow, Unauthorized } from "./api";
 import { addDays, today } from "./dates";
 
@@ -7,12 +7,14 @@ export interface Store {
   entries: Entry[];
   plans: PlanRow[];
   exercises: ExerciseRow[];
+  settings: Settings;
   loading: boolean;
   error: string | null;
   add(items: EntryInput[], source?: string): Promise<Entry[]>;
   update(id: string, patch: Partial<Entry>): Promise<void>;
   remove(id: string): Promise<void>;
   removePlan(id: string): Promise<void>;
+  savePushups(value: PushupSettings): Promise<void>;
   reload(): Promise<void>;
 }
 
@@ -22,6 +24,7 @@ export function useStore(onUnauthorized: () => void): Store {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [exercises, setExercises] = useState<ExerciseRow[]>([]);
+  const [settings, setSettings] = useState<Settings>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,11 +44,20 @@ export function useStore(onUnauthorized: () => void): Store {
 
   const reload = useCallback(async () => {
     const t = today();
+    const from = addDays(t, -400);
     await guard(async () => {
-      const [e, p, x] = await Promise.all([api.entries(addDays(t, -400), addDays(t, 365)), api.plans(), api.exercises()]);
-      setEntries(e);
+      // Push-ups older than the main window still count toward lifetime rank.
+      const [e, old, p, x, s] = await Promise.all([
+        api.entries(from, addDays(t, 365)),
+        api.entries("2000-01-01", addDays(from, -1), "Push-ups"),
+        api.plans(),
+        api.exercises(),
+        api.settings(),
+      ]);
+      setEntries([...old, ...e]);
       setPlans(p);
       setExercises(x);
+      setSettings(s);
     }).finally(() => setLoading(false));
   }, [guard]);
 
@@ -69,6 +81,7 @@ export function useStore(onUnauthorized: () => void): Store {
     entries,
     plans,
     exercises,
+    settings,
     loading,
     error,
     reload,
@@ -98,6 +111,10 @@ export function useStore(onUnauthorized: () => void): Store {
       } catch {
         setEntries(prev);
       }
+    },
+    async savePushups(value) {
+      setSettings((cur) => ({ ...cur, pushups: value }));
+      setSettings(await guard(() => api.savePushups(value)));
     },
     async removePlan(id) {
       await guard(() => api.removePlan(id));
