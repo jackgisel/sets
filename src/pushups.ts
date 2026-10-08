@@ -263,20 +263,29 @@ export function daysToNextRank(j: Journey): number | null {
   return Math.ceil(j.rank.toNext / j.pace);
 }
 
-/** Week-aligned rows of the journey for the chain calendar, oldest first, padded to whole weeks. */
-export function chainWeeks(j: Journey, maxWeeks = 26): Array<Array<PushDay | null>> {
-  const first = startOfWeek(j.days[0].date);
-  const byDate = new Map(j.days.map((d) => [d.date, d]));
-  const weeks: Array<Array<PushDay | null>> = [];
-  for (let w = startOfWeek(j.today); w >= first && weeks.length < maxWeeks; w = addDays(w, -7)) {
-    const row: Array<PushDay | null> = [];
+/** Week-aligned rows of days for a chain calendar, oldest first, padded to whole weeks. */
+export function weekRows<T extends { date: string }>(
+  days: T[],
+  today: string,
+  before: (date: string) => T,
+  maxWeeks = 26,
+): Array<Array<T | null>> {
+  const first = startOfWeek(days[0].date);
+  const byDate = new Map(days.map((d) => [d.date, d]));
+  const weeks: Array<Array<T | null>> = [];
+  for (let w = startOfWeek(today); w >= first && weeks.length < maxWeeks; w = addDays(w, -7)) {
+    const row: Array<T | null> = [];
     for (let i = 0; i < 7; i++) {
       const d = addDays(w, i);
-      row.push(byDate.get(d) ?? (d < j.days[0].date ? { date: d, reps: 0, goal: 0, sets: [], status: "before", closedHour: null } : null));
+      row.push(byDate.get(d) ?? (d < days[0].date ? before(d) : null));
     }
     weeks.unshift(row);
   }
   return weeks;
+}
+
+export function chainWeeks(j: Journey, maxWeeks = 26): Array<Array<PushDay | null>> {
+  return weekRows(j.days, j.today, (date) => ({ date, reps: 0, goal: 0, sets: [], status: "before", closedHour: null }), maxWeeks);
 }
 
 /** Suggested quick-add set sizes, built from what you actually do. */
@@ -302,6 +311,7 @@ export const QUOTES: Array<{ text: string; by: string }> = [
   { text: "The hardest part for me is getting started and avoiding perfectionism.", by: "You, in 2022. You started." },
   { text: "Per aspera ad astra.", by: "Red Rising" },
   { text: "Never miss twice.", by: "James Clear" },
+  { text: "It's a dangerous business, going out your door.", by: "The Lord of the Rings" },
 ];
 
 export function pickQuote(seed: string) {

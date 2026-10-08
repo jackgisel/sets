@@ -67,7 +67,7 @@ export function PushupCard({ journey: j, store, onOpen }: { journey: Journey; st
         <div className="pu-body">
           <div className="pu-title">
             <button type="button" className="pu-day" onClick={onOpen} disabled={!onOpen}>
-              Day {j.dayNumber}
+              Push-ups <span className="pu-dayn">day {j.dayNumber}</span>
             </button>
             <span className="pu-badges">
               <span className={`pu-badge ${j.streak ? "lit" : ""}`} title="Streak">

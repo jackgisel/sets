@@ -61,3 +61,11 @@ export interface PushupSettings {
 export interface Settings {
   pushups?: PushupSettings;
 }
+
+/** One day's step count. Phones report a running total, so a day holds one number that later writes replace. */
+export interface StepDay {
+  date: string;
+  steps: number;
+  source: string;
+  updated_at: string;
+}

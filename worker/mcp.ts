@@ -6,6 +6,8 @@ import {
   HttpError,
   listEntries,
   listPlans,
+  listSteps,
+  putSteps,
   summary,
   updateEntry,
   utcToday,
@@ -105,6 +107,25 @@ const TOOLS = [
     },
   },
   {
+    name: "log_steps",
+    description:
+      "Record the owner's step count for a day. The daily goal is 10,000. mode 'set' (default) replaces the day's total, which is what a phone reports; 'add' adds to it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        date: { type: "string", description: "YYYY-MM-DD (defaults to UTC today)" },
+        steps: { type: "integer" },
+        mode: { type: "string", enum: ["set", "add"] },
+      },
+      required: ["steps"],
+    },
+  },
+  {
+    name: "list_steps",
+    description: "List daily step counts in a date range.",
+    inputSchema: { type: "object", properties: { from: { type: "string" }, to: { type: "string" } } },
+  },
+  {
     name: "delete_entry",
     description: "Delete a single entry.",
     inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
@@ -136,6 +157,10 @@ async function callTool(env: Env, source: string, name: string, args: Args): Pro
       const { id, ...patch } = args;
       return updateEntry(env, String(id ?? ""), patch);
     }
+    case "log_steps":
+      return putSteps(env, args, source);
+    case "list_steps":
+      return listSteps(env, { from: args.from as string, to: args.to as string });
     case "delete_entry":
       await deleteEntry(env, String(args.id ?? ""));
       return { ok: true };

@@ -44,17 +44,7 @@ export function ProgressView({ store }: { store: Store }) {
   return (
     <>
       <header className="view-head">
-        <h1>
-          <span className="h-icon blue">
-            <svg width="24" height="24" viewBox="0 0 24 24">
-              <rect x="3" y="3" width="18" height="18" rx="4.5" fill="currentColor" />
-              <rect x="6.5" y="12.5" width="2.6" height="5" rx="1" fill="#fff" />
-              <rect x="10.7" y="9" width="2.6" height="8.5" rx="1" fill="#fff" />
-              <rect x="14.9" y="6.5" width="2.6" height="11" rx="1" fill="#fff" />
-            </svg>
-          </span>
-          Progress
-        </h1>
+        <h1>Progress</h1>
         <div className="view-sub">{fromISO(t).getFullYear()} so far</div>
       </header>
 

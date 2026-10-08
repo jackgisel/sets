@@ -1,5 +1,5 @@
 import { exerciseAlias } from "../shared/parse";
-import type { Entry, EntryStatus, Plan, PushupSettings, Settings } from "../shared/types";
+import type { Entry, EntryStatus, Plan, PushupSettings, Settings, StepDay } from "../shared/types";
 
 export interface Env {
   DB: D1Database;
@@ -33,6 +33,16 @@ export function addDays(date: string, days: number): string {
 
 export function utcToday(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** Today's date in an IANA time zone (e.g. Cloudflare's guess for the caller), falling back to UTC. */
+export function localToday(timeZone?: unknown): string {
+  if (typeof timeZone !== "string" || !timeZone) return utcToday();
+  try {
+    return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  } catch {
+    return utcToday();
+  }
 }
 
 function optNum(v: unknown, field: string, { int = false, max = 100_000 } = {}): number | null {
@@ -329,6 +339,68 @@ export async function summary(env: Env, today: string) {
     exercises: [...byExercise.values()].sort((a, b) => b.sessions - a.sessions),
     recent_entries: done.slice(-40),
     upcoming_planned: upcoming,
+    steps: await stepsSummary(env, today),
+  };
+}
+
+export const STEP_GOAL = 10_000;
+const MAX_STEPS = 200_000;
+
+export async function listSteps(env: Env, q: { from?: string | null; to?: string | null }): Promise<StepDay[]> {
+  const where: string[] = [];
+  const args: unknown[] = [];
+  for (const [k, op] of [["from", ">="], ["to", "<="]] as const) {
+    const v = q[k];
+    if (!v) continue;
+    if (!isDate(v)) throw new HttpError(400, `${k} must be YYYY-MM-DD`);
+    where.push(`date ${op} ?`);
+    args.push(v);
+  }
+  // Tolerate a database that hasn't had 0003_steps applied yet (deploy runs before migrations).
+  return env.DB.prepare(`SELECT * FROM steps ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY date ASC LIMIT 5000`)
+    .bind(...args)
+    .all<StepDay>()
+    .then((r) => r.results)
+    .catch(() => []);
+}
+
+/**
+ * Record a day's steps. `set` replaces the total (what a phone reports); `add` tops it up (a walk you
+ * want to add by hand). A total of 0 clears the day.
+ */
+export async function putSteps(env: Env, raw: unknown, source: string, fallbackDate = utcToday()): Promise<StepDay> {
+  if (!raw || typeof raw !== "object") throw new HttpError(400, "body must be an object");
+  const b = raw as Record<string, unknown>;
+  const date = b.date ?? fallbackDate;
+  if (!isDate(date)) throw new HttpError(400, "date must be YYYY-MM-DD");
+  const steps = optNum(b.steps, "steps", { int: true, max: MAX_STEPS });
+  if (steps == null) throw new HttpError(400, "steps is required");
+  const mode = oneOf(b.mode, "mode", ["set", "add"] as const) ?? "set";
+  const now = new Date().toISOString();
+  const row = await env.DB.prepare(
+    `INSERT INTO steps (date, steps, source, updated_at) VALUES (?1, ?2, ?3, ?4)
+     ON CONFLICT(date) DO UPDATE SET steps = MIN(${MAX_STEPS}, CASE WHEN ?5 = 'add' THEN steps + excluded.steps ELSE excluded.steps END),
+       source = excluded.source, updated_at = excluded.updated_at
+     RETURNING *`,
+  )
+    .bind(date, steps, source, now, mode)
+    .first<StepDay>();
+  if (!row) throw new HttpError(500, "could not save steps");
+  return row;
+}
+
+async function stepsSummary(env: Env, today: string) {
+  const days = await listSteps(env, { from: addDays(today, -29), to: today });
+  const byDate = new Map(days.map((d) => [d.date, d.steps]));
+  let streak = 0;
+  for (let d = (byDate.get(today) ?? 0) >= STEP_GOAL ? today : addDays(today, -1); (byDate.get(d) ?? 0) >= STEP_GOAL; d = addDays(d, -1)) streak++;
+  const last7 = [...Array(7)].map((_, i) => byDate.get(addDays(today, -i)) ?? 0);
+  return {
+    daily_goal: STEP_GOAL,
+    today: byDate.get(today) ?? 0,
+    goal_streak_days: streak,
+    avg_last_7: Math.round(last7.reduce((a, b) => a + b, 0) / 7),
+    days_at_goal_last_30: days.filter((d) => d.steps >= STEP_GOAL).length,
   };
 }
 

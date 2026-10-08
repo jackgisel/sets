@@ -4,10 +4,12 @@ import { EntryRow } from "../components/EntryRow";
 import { Heatmap } from "../components/Heatmap";
 import { FlameIcon, RingIcon } from "../components/Icons";
 import { PushupCard } from "../components/PushupCard";
+import { StepsCard } from "../components/StepsCard";
 import { QuickAdd } from "../components/QuickAdd";
 import { addDays, fmtDay, fromISO, relativeLabel, today } from "../dates";
 import type { Store } from "../store";
 import { isPushup, type Journey } from "../pushups";
+import type { Walk } from "../steps";
 import { dayStats, doneEntries, streaks } from "../stats";
 
 export interface ViewProps {
@@ -39,7 +41,15 @@ function Rows({ list, store }: { list: Entry[]; store: Store }) {
   );
 }
 
-export function TodayView({ store, adding, setAdding, journey, onPushups }: ViewProps & { journey: Journey | null; onPushups(): void }) {
+export function TodayView({
+  store,
+  adding,
+  setAdding,
+  journey,
+  walk,
+  onPushups,
+  onSteps,
+}: ViewProps & { journey: Journey | null; walk: Walk; onPushups(): void; onSteps(): void }) {
   const t = today();
   // With the push-up challenge on, today's push-up sets live in the card instead of the list.
   const list = store.entries.filter((e) => e.date === t && !(journey && e.status === "done" && isPushup(e)));
@@ -51,12 +61,7 @@ export function TodayView({ store, adding, setAdding, journey, onPushups }: View
   return (
     <>
       <header className="view-head">
-        <h1>
-          <span className="h-icon yellow">
-            <StarGlyph />
-          </span>
-          Today
-        </h1>
+        <h1>Today</h1>
         <div className="view-sub">
           {fmtDay(t, { weekday: "long", month: "long", day: "numeric" })}
           {current > 0 && !journey && (
@@ -67,11 +72,13 @@ export function TodayView({ store, adding, setAdding, journey, onPushups }: View
         </div>
       </header>
 
+      <StepsCard walk={walk} store={store} onOpen={onSteps} />
+
       {journey ? (
         <PushupCard journey={journey} store={store} onOpen={onPushups} />
       ) : (
         <button type="button" className="pu-invite" onClick={onPushups}>
-          <RingIcon size={18} pct={0.66} className="c-red" />
+          <RingIcon size={18} pct={0.66} />
           <span>
             <b>Start the daily push-up climb</b>
             <span className="muted"> · every day, a little more</span>
@@ -107,14 +114,6 @@ export function TodayView({ store, adding, setAdding, journey, onPushups }: View
   );
 }
 
-function StarGlyph() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24">
-      <path d="M12 2.8l2.75 5.6 6.15.9-4.45 4.33 1.05 6.12L12 16.87l-5.5 2.88 1.05-6.12L3.1 9.3l6.15-.9L12 2.8z" fill="currentColor" />
-    </svg>
-  );
-}
-
 function groupByDate(list: Entry[]) {
   const groups = new Map<string, Entry[]>();
   for (const e of list) groups.set(e.date, [...(groups.get(e.date) ?? []), e]);
@@ -130,12 +129,7 @@ export function UpcomingView({ store, adding, setAdding }: ViewProps) {
   return (
     <>
       <header className="view-head">
-        <h1>
-          <span className="h-icon red">
-            <CalGlyph />
-          </span>
-          Upcoming
-        </h1>
+        <h1>Upcoming</h1>
         <div className="view-sub">Planned workouts from you and your agents</div>
       </header>
 
@@ -169,18 +163,6 @@ export function UpcomingView({ store, adding, setAdding }: ViewProps) {
   );
 }
 
-function CalGlyph() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24">
-      <rect x="3" y="4.5" width="18" height="16.5" rx="3.5" fill="currentColor" />
-      <rect x="6.5" y="11" width="3" height="3" rx=".8" fill="#fff" />
-      <rect x="10.5" y="11" width="3" height="3" rx=".8" fill="#fff" />
-      <rect x="14.5" y="11" width="3" height="3" rx=".8" fill="#fff" />
-      <rect x="6.5" y="15.5" width="3" height="3" rx=".8" fill="#fff" />
-    </svg>
-  );
-}
-
 export function LogbookView({ store }: ViewProps) {
   const t = today();
   const done = store.entries.filter((e) => e.status === "done").reverse();
@@ -189,20 +171,12 @@ export function LogbookView({ store }: ViewProps) {
   return (
     <>
       <header className="view-head">
-        <h1>
-          <span className="h-icon green">
-            <svg width="24" height="24" viewBox="0 0 24 24">
-              <rect x="3" y="3" width="18" height="18" rx="4.5" fill="currentColor" />
-              <path d="M7.5 12.3l3 3 6-6.3" stroke="#fff" strokeWidth="2.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-          Logbook
-        </h1>
+        <h1>History</h1>
         <div className="view-sub">{done.length} exercises logged</div>
       </header>
       {groups.length === 0 && (
         <div className="empty static">
-          <span className="empty-title">Your logbook is empty</span>
+          <span className="empty-title">Nothing here yet</span>
           <span className="muted">Everything you check off shows up here.</span>
         </div>
       )}

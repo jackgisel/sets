@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Entry, EntryInput, PushupSettings, Settings } from "../shared/types";
+import type { Entry, EntryInput, PushupSettings, Settings, StepDay } from "../shared/types";
 import { api, type ExerciseRow, type PlanRow, Unauthorized } from "./api";
 import { addDays, today } from "./dates";
 
@@ -8,6 +8,7 @@ export interface Store {
   plans: PlanRow[];
   exercises: ExerciseRow[];
   settings: Settings;
+  steps: StepDay[];
   loading: boolean;
   error: string | null;
   add(items: EntryInput[], source?: string): Promise<Entry[]>;
@@ -15,6 +16,7 @@ export interface Store {
   remove(id: string): Promise<void>;
   removePlan(id: string): Promise<void>;
   savePushups(value: PushupSettings): Promise<void>;
+  saveSteps(date: string, steps: number, mode?: "set" | "add"): Promise<void>;
   reload(): Promise<void>;
 }
 
@@ -25,6 +27,7 @@ export function useStore(onUnauthorized: () => void): Store {
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [exercises, setExercises] = useState<ExerciseRow[]>([]);
   const [settings, setSettings] = useState<Settings>({});
+  const [steps, setSteps] = useState<StepDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,17 +50,20 @@ export function useStore(onUnauthorized: () => void): Store {
     const from = addDays(t, -400);
     await guard(async () => {
       // Push-ups older than the main window still count toward lifetime rank.
-      const [e, old, p, x, s] = await Promise.all([
+      // Steps come back in full: the walk's lifetime distance needs every day.
+      const [e, old, p, x, s, st] = await Promise.all([
         api.entries(from, addDays(t, 365)),
         api.entries("2000-01-01", addDays(from, -1), "Push-ups"),
         api.plans(),
         api.exercises(),
         api.settings(),
+        api.steps("2000-01-01", addDays(t, 1)),
       ]);
       setEntries([...old, ...e]);
       setPlans(p);
       setExercises(x);
       setSettings(s);
+      setSteps(st);
     }).finally(() => setLoading(false));
   }, [guard]);
 
@@ -82,6 +88,7 @@ export function useStore(onUnauthorized: () => void): Store {
     plans,
     exercises,
     settings,
+    steps,
     loading,
     error,
     reload,
@@ -115,6 +122,17 @@ export function useStore(onUnauthorized: () => void): Store {
     async savePushups(value) {
       setSettings((cur) => ({ ...cur, pushups: value }));
       setSettings(await guard(() => api.savePushups(value)));
+    },
+    async saveSteps(date, n, mode = "set") {
+      const prev = steps;
+      const upsert = (day: StepDay) => (cur: StepDay[]) => [...cur.filter((d) => d.date !== day.date), day].sort((a, b) => (a.date < b.date ? -1 : 1));
+      const old = steps.find((d) => d.date === date)?.steps ?? 0;
+      setSteps(upsert({ date, steps: mode === "add" ? old + n : n, source: "manual", updated_at: new Date().toISOString() }));
+      try {
+        setSteps(upsert(await guard(() => api.saveSteps(date, n, mode))));
+      } catch {
+        setSteps(prev);
+      }
     },
     async removePlan(id) {
       await guard(() => api.removePlan(id));
